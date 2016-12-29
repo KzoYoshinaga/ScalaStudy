@@ -361,18 +361,187 @@ class funSam {
     val books: Set[Book] =
       Set(new Book("Programming in Scala"),
           new Book("Walden"))
-    def printBookList(info: Book => AnyRef) = // BookはPublicationのサブ型
-      for (book <- books) println(info(book)) // AnyRefはStringのスーパ型
+    def printBookList(info: Book => AnyRef) = // BookはPublicationのサブ型 パラメータ型
+      for (book <- books) println(info(book)) // AnyRefはStringのスーパ型  結果型
   }
   object Customer extends App {
-    def getTitle(p: Publication): String = p.title // PublicatonはBookのスーパ型
-    Library.printBookList(getTitle)                // StringはAnyRefのサブ型
+    def getTitle(p: Publication): String = p.title // PublicatonはBookのスーパ型 パラメータ型
+    Library.printBookList(getTitle)                // StringはAnyRefのサブ型      結果型
   }
 }
+
+/** オブジェクト非公開データ
+ *
+ * これまでのQueueクラスには、問題があった。
+ * leadingが空になっている状態でheadが何度か立て続けに呼び出されると、
+ * mirrorがtrailingをleadingに繰り返しコピーしてしまうという問題
+ *
+ * このような無駄なコピーは、副作用を適切に使えば避けられる
+ */
+// 最適化された関数型待ち行列
+class ImprovedQueue {
+  class Queue[+T] private(
+      private[this] var leading: List[T],
+      private[this] var trailing: List[T]) {
+    private def mirror() =
+      if (leading.isEmpty) {
+        while (!trailing.isEmpty) {
+          leading = trailing.head :: leading
+          trailing = trailing.tail
+        }
+      }
+    def head: T = {
+      mirror()
+      leading.head
+    }
+    def tail: Queue[T] = {
+      mirror()
+      new Queue(leading.tail, trailing)
+    }
+    def enqueue[U >: T](x: U) =
+      new Queue[U](leading, x :: trailing)
+  }
+}
+/* leadingとtrailingがprivate[this]修飾しによってオブジェクト非公開(object private)
+ * 宣言をしていなければ変位指定の規則違反になっていた
+ *
+ * 変位指定が型エラーを引き起こすような条件を作るには、オブジェクトの定義型よりも
+ * 静的に弱い型を持つ内包オブジェクトへの参照が必要
+ *
+ * しかし、オブジェクト非公開の値へのアクセスでは、そのような条件を作ることが出来ない
+ *
+ * Scalaの変位指定チェック規則には、オブジェクト非公開定義のための特別条件が含まれている
+ * +, - アノテーションが付いた方パラメーターが、同じ分類のポジションにしか現れない場合
+ * オブジェクト非公開定義に対するチェックが省略される
+ *
+ * ２つの非公開修飾子の[this]限定子を省略すると、２箇所で型エラーが起こる
+ */
+
+/** 上限境界(upper bounds)
+ *
+ * Orderedトレイトの抽象メソッドcompareを実装すると、クライアントプログラムは
+ * そのクラスのインスタンスを<, >, <=, >= 演算子で比較できるようになる
+ */
+// OrderedトレイトをミックスインしているPersonクラス
+class compareable {
+  class Person(val firstName: String, val lastName: String) extends Ordered[Person] {
+    def compare(that: Person) = {
+      val lastNameComparison =
+        lastName.compareToIgnoreCase(that.lastName)
+      if (lastNameComparison != 0)
+        lastNameComparison
+      else
+        firstName.compareToIgnoreCase(that.firstName)
+    }
+    override def toString = firstName + " " + lastName
+  }
+  class Main extends App {
+    val robert = new Person("Robert", "Jones")
+    val sally = new Person("Saly", "Smith")
+    robert < sally  // true
+
+    // マージソート
+    def msort[T](less: (T, T) => Boolean)(xs: List[T]): List[T] = {
+      def merge(xs: List[T], ys: List[T]): List[T] =
+        (xs, ys) match {
+          case (Nil, _) => ys
+          case (_, Nil) => xs
+          case (x :: xs1, y :: ys1) =>
+            if (less(x, y)) x :: merge(xs1, ys)
+            else y :: merge(xs, ys1)
+        }
+      val n = xs .length / 2
+      if (n == 0) xs
+      else {
+        val (ys, zs) = xs splitAt n
+        merge(msort(less)(ys), msort(less)(zs))
+      }
+    }
+
+     // 上限境界を指定しているマージソート
+    def orderedMergeSort[T <: Ordered[T]](xs: List[T]): List[T] = {
+      def merge(xs: List[T], ys: List[T]): List[T] =
+        (xs, ys) match {
+          case (Nil, _) => ys
+          case (_, Nil) => xs
+          case (x :: xs1, y :: ys1) =>
+            if (x < y) x :: merge(xs1, ys)  // Orderedを実装しているので直接比較できる
+            else y :: merge(xs, ys1)
+        }
+      val n = xs .length / 2
+      if (n == 0) xs
+      else {
+        val (ys, zs) = xs splitAt n
+        merge(orderedMergeSort(ys), orderedMergeSort(zs))
+      }
+    }
+
+    val people = List(
+        new Person("Larry", "Wall"),
+        new Person("Anders", "Hejlsberg"),
+        new Person("Guido", "van Rossum"),
+        new Person("Alan", "Kay"),
+        new Person("Yukihiro", "Matsumoto"))
+     //       people: List[Person] = List(Larry Wall, Anders Hejlsberg, Guido van Rossum, Alan Kay, Yukihiro Matsumoto)
+
+     val sortedPeople = orderedMergeSort(people)
+     // sortedPeople: List[Person] = List(Anders Hejlsberg, Alan Kay, Yukihiro Matsumoto, Guido van Rossum, Larry Wall)
+
+  }
+}
+/* 新しいソート関数に渡されるリスト型はOrderedトレイトをミックスインしていなければ
+ * ならないことを指定するには、上限境界(upper bound)を使用する。 ( <: )
+ *
+ * T <: Ordered[T] と言う構文を使うと、型パラメーターのTがOrdered[T]と言う上限境界を持つことを指定できる
+ *
+ * これはorderdMergeSortに渡されるリストの要素型がOrderedのサブ型でなければならないということである
+ *
+ * PersonはOrderedをミックスインしているのでList[Person]はorderdMergeSortに渡すことが出来る
+ *
+ * たとえばIntクラスはOrdered[Int]のサブ型ではないので、整数のリストのソートには
+ * orderedMergeSort関数を使うことは出来ない
+ *
+ * 暗黙のパラメーター(implicit parameters)とコンテキスト境界(context bounds)を使って
+ * より一般的な解を作る方法は21.6節で示す
+ */
+
+/** まとめ
+ *
+ * 非公開コンストラクタ
+ * ファクトリーメソッド
+ * 型の抽象化
+ * オブジェクト非公開メンバー
+ *
+ * などの情報隠蔽の手法を見てきた
+ *
+ * 型の変位指定の方法や、クラスの実装における変位指定の意味も説明した
+ *
+ * また、柔軟性の有る変位指定アノテーションを実現するテクニックとして
+ *
+ * メソッドの型パラメータの下限境界
+ * ローカルフィールド/メソッドのprivate[this]アノテーション
+ *
+ */
+
 
 class Param {
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
