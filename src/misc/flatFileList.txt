@@ -1,0 +1,59 @@
+package main
+
+import java.io.File
+
+import scalafx.Includes._
+import scalafx.application.JFXApp
+import scalafx.scene.Scene
+import scalafx.scene.control.TextArea
+import scalafx.scene.input.Dragboard
+import scalafx.scene.input.DragEvent
+import scalafx.scene.input.TransferMode
+import scalafx.beans.property.StringProperty
+import scalafx.scene.layout.BorderPane
+import scalafx.scene.layout.Pane
+
+
+import scala.collection.JavaConverters._
+
+object Main extends JFXApp {
+  stage = new JFXApp.PrimaryStage {
+    title.value = "File Utils"
+
+     val textArea = new TextArea {
+          onDragOver = (event: DragEvent) =>
+            event.getDragboard() match {
+                case db if db.hasFiles => event.acceptTransferModes(TransferMode.COPY)
+                case _ => event.consume()
+            }
+
+          onDragDropped = (event: DragEvent) =>
+            event.getDragboard()  match {
+              case db if db.hasFiles =>
+                // text = db.getFiles.asScala.map(_.getAbsolutePath).mkString("\r\n")
+                // text = flatFileList(db).map(_.getAbsolutePath).mkString("\r\n")
+                text = flatFileList(db).filter(_.isFile).map(_.getAbsolutePath).map(_.replace('\\', '/')).mkString("\r\n")
+                event.setDropCompleted(true)
+                event.consume()
+              case _ =>
+                event.setDropCompleted(false)
+                event.consume()
+            }
+        }
+
+    val borderPane = new BorderPane
+    borderPane.center = textArea
+
+    scene = new Scene(borderPane)
+  }
+
+  def flatFileList(db: Dragboard): List[File] = db.getFiles.asScala.take(1).map(file => {
+    def expand(files: List[File], acc: List[File] = List[File]()): List[File] = files match {
+        case Nil => acc
+        case h :: tail if h.isFile => expand(tail, acc :+ h)
+        case h :: tail if h.isDirectory => expand(h.listFiles.toList ::: tail, acc :+ h)
+      }
+    expand(file.listFiles.toList)
+  }).flatten.toList
+
+}
