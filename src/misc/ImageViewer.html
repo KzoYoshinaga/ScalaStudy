@@ -5,7 +5,7 @@
 <script type="text/javascript">
 function showImage(){
 	function valueById(id){return document.getElementById(id).value.trim().split("\"").join("")}
-	function toAbsolute(s){return valueById("root").split(",").map(function(r){return r+s})}
+	function toAbsolute(s){return valueById("root").split(",").map(function(r){return r.trim()+s})}
 	function toImgTag(m){return m.map(function(s){return "<p>"+s+"</p><img src='"+s+"'>"})}
 	function extentionFilter(f,i,a){
 		function check(e,i,a){return f.endsWith(e)}
