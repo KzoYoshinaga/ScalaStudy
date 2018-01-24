@@ -13,7 +13,8 @@ function showImage(){
  		var acceptable=valueById("filter").split(",").map(toExtention);
         return acceptable.filter(check).length > 0;
 	}
-	document.getElementById("test").innerHTML=valueById("textarea").split("\n").filter(extentionFilter).map(toAbsolute).map(toImgTag).reduce(function(a,b){return a.concat("<hr>").concat(b)}).join("");
+	function flattenWithBar(a,b){return a.concat("<hr>").concat(b)}
+	document.getElementById("test").innerHTML=valueById("textarea").split("\n").filter(extentionFilter).map(toAbsolute).map(toImgTag).reduce(flattenWithBar).join("");
 }
 </script>
 </head>
