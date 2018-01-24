@@ -1,0 +1,29 @@
+<html>
+<head>
+<!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script> -->
+<script src="jquery-3.3.1.min.js"></script>
+<script type="text/javascript">
+function showImage(){
+	function toAbsolute(s){return document.getElementById("root").value.trim().split(",").map(function(r){return r+s})}
+	function toImgTag(m){return m.map(function(s){return "<p>"+s+"</p><img src='"+s+"'>"})}
+	function extentionFilter(f,i,a){
+		function check(e,i,a){return f.endsWith(e)}
+		function toExtention(s){return "."+s.trim()}
+ 		var acceptable=document.getElementById("filter").value.split(",").map(toExtention);
+        return acceptable.filter(check).length > 0;
+	}
+	document.getElementById("test").innerHTML=document.getElementById("textarea").value.split("\n").filter(extentionFilter).map(toAbsolute).map(toImgTag).reduce(function(a,b){return a.concat("<hr>").concat(b)}).join("");
+}
+</script>
+</head>
+<body>
+<table>
+<tr><td>filters</td><td><input id="filter" type="text" value="jpg, png, gif" style="width:400px"></td></tr>
+<tr><td>roots</td><td><input id="root" type="text" style="width:400px"></td></tr>
+<tr><td><div style="top:0">paths</div></td><td><textarea id="textarea" style="width:400px;height:40px"></textarea></td></tr>
+<tr><td></td><td style="text-align:right"><input type="button" value="show" onClick="showImage()"></td>
+</table>
+<hr>
+<div id="test"></div>
+</body>
+</html>
