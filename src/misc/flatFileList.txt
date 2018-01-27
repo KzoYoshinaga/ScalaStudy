@@ -26,6 +26,7 @@ object Main extends JFXApp {
   val pathsField = new TextArea {
             maxWidth = Double.MaxValue
             hgrow = Priority.ALWAYS
+            text.onChange { pathsLength.value = "RowsCount: " + text.value.split("\n").length }
             onDragOver = (event: DragEvent) =>
               event.getDragboard() match {
                   case db if db.hasFiles => event.acceptTransferModes(TransferMode.COPY)
@@ -45,12 +46,17 @@ object Main extends JFXApp {
                   event.setDropCompleted(false)
                   event.consume()
               }}
-
+  val pathsLength = new StringProperty
+  val paramText = new TextField {
+    disable = true
+    text <== pathsLength
+  }
   stage = new JFXApp.PrimaryStage {
     title = "FileUtils"
     scene = new Scene(new BorderPane {
       top = new HBox (folderCheck, fileCheck, fileFilterText, absoluteCheck, rootURL)
       center = pathsField
+      bottom = paramText
     })
   }
 
