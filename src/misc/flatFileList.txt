@@ -13,11 +13,6 @@ import scalafx.scene.input.{ Dragboard, DragEvent, TransferMode }
 import scalafx.scene.input.{ MouseEvent }
 import scalafx.beans.property.StringProperty
 
-import akka.actor.{ Actor, ActorRef, ActorSystem, Props, ActorLogging }
-
-
-import scala.collection.JavaConverters._
-
 object Main extends JFXApp {
   val folderCheck = new CheckBox{ text = "Folder"; selected = true }
   val fileCheck = new CheckBox{ text = "File"; selected = true }
@@ -52,6 +47,7 @@ object Main extends JFXApp {
               }}
 
   stage = new JFXApp.PrimaryStage {
+    title = "FileUtils"
     scene = new Scene(new BorderPane {
       top = new HBox (folderCheck, fileCheck, fileFilterText, absoluteCheck, rootURL)
       center = pathsField
@@ -78,5 +74,4 @@ object Main extends JFXApp {
       }
     expand(file.listFiles.toList)
   }).flatten.toList
-
 }
