@@ -1,52 +1,75 @@
 package main
 
 import java.io.File
+import scala.collection.JavaConverters._
 
 import scalafx.Includes._
 import scalafx.application.JFXApp
 import scalafx.scene.Scene
-import scalafx.scene.control.TextArea
-import scalafx.scene.input.Dragboard
-import scalafx.scene.input.DragEvent
-import scalafx.scene.input.TransferMode
+import scalafx.scene.layout.{ Pane, VBox, HBox, BorderPane, Priority }
+import scalafx.stage.{Stage, StageStyle }
+import scalafx.scene.control.{ TextArea, Button, CheckBox, TextField, Label }
+import scalafx.scene.input.{ Dragboard, DragEvent, TransferMode }
+import scalafx.scene.input.{ MouseEvent }
 import scalafx.beans.property.StringProperty
-import scalafx.scene.layout.BorderPane
-import scalafx.scene.layout.Pane
+
+import akka.actor.{ Actor, ActorRef, ActorSystem, Props, ActorLogging }
 
 
 import scala.collection.JavaConverters._
 
 object Main extends JFXApp {
+  val folderCheck = new CheckBox{ text = "Folder"; selected = true }
+  val fileCheck = new CheckBox{ text = "File"; selected = true }
+  val fileFilterText = new TextField {
+    text = "jpg, png, gif"
+    disable <== !fileCheck.selected }
+  val absoluteCheck = new CheckBox{ text = "Absolute"; selected = true }
+  val rootURL = new TextField{
+    maxWidth = Double.MaxValue
+    hgrow = Priority.ALWAYS }
+  val pathsField = new TextArea {
+            maxWidth = Double.MaxValue
+            hgrow = Priority.ALWAYS
+            onDragOver = (event: DragEvent) =>
+              event.getDragboard() match {
+                  case db if db.hasFiles => event.acceptTransferModes(TransferMode.COPY)
+                  case _ => event.consume()
+              }
+            onDragDropped = (event: DragEvent) =>
+              event.getDragboard()  match {
+                case db if db.hasFiles =>
+                  rootURL.text = db.getUrl.replace("file:/", "")
+                  text = ""
+                  text = flatFileList(db).filter(filter).map(_.getAbsolutePath).map(_.replace('\\', '/')).map(toPath).mkString("\r\n")
+                  event.setDropCompleted(true)
+                  event.consume()
+                case _ =>
+                  rootURL.text = ""
+                  text = ""
+                  event.setDropCompleted(false)
+                  event.consume()
+              }}
+
   stage = new JFXApp.PrimaryStage {
-    title.value = "File Utils"
-
-     val textArea = new TextArea {
-          onDragOver = (event: DragEvent) =>
-            event.getDragboard() match {
-                case db if db.hasFiles => event.acceptTransferModes(TransferMode.COPY)
-                case _ => event.consume()
-            }
-
-          onDragDropped = (event: DragEvent) =>
-            event.getDragboard()  match {
-              case db if db.hasFiles =>
-                // text = db.getFiles.asScala.map(_.getAbsolutePath).mkString("\r\n")
-                // text = flatFileList(db).map(_.getAbsolutePath).mkString("\r\n")
-                text = flatFileList(db).filter(_.isFile).map(_.getAbsolutePath).map(_.replace('\\', '/')).mkString("\r\n")
-                event.setDropCompleted(true)
-                event.consume()
-              case _ =>
-                event.setDropCompleted(false)
-                event.consume()
-            }
-        }
-
-    val borderPane = new BorderPane
-    borderPane.center = textArea
-
-    scene = new Scene(borderPane)
+    scene = new Scene(new BorderPane {
+      top = new HBox (folderCheck, fileCheck, fileFilterText, absoluteCheck, rootURL)
+      center = pathsField
+    })
   }
 
+  def toPath(path: String) = absoluteCheck.selected.value match {
+      case true => path
+      case false => path.replace(rootURL.text.value, "")
+  }
+  def splitStringWithSanitize(s: String) = s.trim.split(",").map(_.trim).filter(!_.equals(""))
+  def filter(file: File): Boolean = {
+    def folderEnable = folderCheck.selected.value && file.isDirectory
+    def extentionFilterBlank = splitStringWithSanitize(fileFilterText.text.value).length == 0
+    def matchExtention = splitStringWithSanitize(fileFilterText.text.value).map(_.toLowerCase).map("." +_).exists(file.getName.toLowerCase().endsWith(_))
+    def fileEnable = fileCheck.selected.value && file.isFile && (extentionFilterBlank || matchExtention)
+    folderEnable || fileEnable
+  }
   def flatFileList(db: Dragboard): List[File] = db.getFiles.asScala.take(1).map(file => {
     def expand(files: List[File], acc: List[File] = List[File]()): List[File] = files match {
         case Nil => acc
