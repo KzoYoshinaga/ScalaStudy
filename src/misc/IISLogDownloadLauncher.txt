@@ -1,0 +1,39 @@
+package main
+
+import com.typesafe._
+
+import scalafx.Includes._
+import scalafx.application.JFXApp
+import scalafx.scene.Scene
+import scalafx.scene.layout.{ Pane, VBox, HBox, BorderPane, Priority }
+import scalafx.stage.{Stage, StageStyle }
+import scalafx.scene.control.{ TextArea, Button, CheckBox, TextField, Label }
+import scalafx.scene.input.{ Dragboard, DragEvent, TransferMode }
+import scalafx.scene.input.{ MouseEvent }
+import scalafx.beans.property.StringProperty
+
+object IISLogDownloadLauncher extends App {
+  // connection string
+  // container name
+  // role name
+  // target deployIDs [3adfa909dafmme0fafe-af, 09ajfkdjfae09fjadkfj]
+  // target instances [0,1,2,3-4]
+  // file prefix [ex_]
+  // target durations [YYYYMMDD-YYYYMMDD, YYYYMMDD]
+  // file suffix [.log]
+  // blob path [WAD/${deployID}/${roleName}_IN${instanceNo}/${prefix}${dateTime}${suffix}]
+  // local root path [../download]
+  // local path [${localRoot}/${deployID}/IN${instanceID}/${prefix}${dateTime}${suffix}]
+
+  val test = "test"
+  println(s"${test}")
+
+  // multiple download
+
+
+  // *** post process ***
+  // remove #_line
+
+  // compression
+
+}
