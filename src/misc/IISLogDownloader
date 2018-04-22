@@ -1,0 +1,119 @@
+package main
+
+import com.typesafe._
+
+import scalafx.Includes._
+import scalafx.application.JFXApp
+import scalafx.scene.Scene
+import scalafx.scene.layout.{ Pane, VBox, HBox, BorderPane, Priority }
+import scalafx.stage.{Stage, StageStyle }
+import scalafx.scene.control.{ Control, TextArea, Button, CheckBox, TextField, Label, Slider, ComboBox, DatePicker }
+import scalafx.scene.input.{ Dragboard, DragEvent, TransferMode }
+import scalafx.scene.input.{ MouseEvent }
+import scalafx.event.ActionEvent
+import scalafx.beans.property.{ Property, StringProperty }
+
+import java.time.{ LocalDate, LocalDateTime }
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
+import akka.actor.{Actor, ActorRef, Props, ActorSystem, PoisonPill, Terminated }
+
+
+
+object Conf {
+  val connenctionString = ""
+  val containerName = ""
+  val roleName = ""
+  val deployIDs = "".split(",").map(_.trim)
+  val blobPath = ""
+  val localRoot = ""
+  val localPath = ""
+  val listRoot = ""
+  val logRoot = ""
+  val tmpRoot = ""
+  val timeOffset = -9
+}
+
+object IISLogDownloadLauncher extends JFXApp {
+  val labelWidth = 100
+  val itemWidth = 500
+  def labeledItem(caption: String, item: Control) = new HBox(new Label(caption){minWidth=labelWidth}, item)
+
+  // string
+  val connectionString = new TextField(){text=Conf.connenctionString; minWidth=itemWidth}
+  val containerName = new TextField(){text=Conf.containerName; minWidth=itemWidth}
+  val roleName = new TextField(){text=Conf.roleName; minWidth=itemWidth}
+  val deployIDs = new ComboBox(Conf.deployIDs){value=Conf.deployIDs(0); minWidth=itemWidth}
+
+  // date
+  val systemStartDateTime = LocalDateTime.now
+  def toAzureDateTime(date: LocalDateTime) = date.plusHours(Conf.timeOffset)
+  case class AzureDateTime(date: LocalDateTime) {
+    def changeHours(h: Int) = AzureDateTime(LocalDateTime.of(date.getYear, date.getMonth.getValue, date.getDayOfMonth, h, 0, 0))
+    def changeDate(d: LocalDate) = AzureDateTime(LocalDateTime.of(d.getYear, d.getMonth.getValue, d.getDayOfMonth, date.getHour, 0, 0))
+    def azureDate = date.plusHours(Conf.timeOffset)
+    def logDate = azureDate.format(DateTimeFormatter.ofPattern("yyMMddHH"))
+    def logFileName = "ex_" + logDate + ".log"
+  }
+  val azureDateFormatter = DateTimeFormatter.ofPattern("yyMMdd")
+  var startDateTime: AzureDateTime = AzureDateTime(LocalDateTime.now)
+  val startHour = new ComboBox(0 to 23){value=systemStartDateTime.getHour;onAction=(e:ActionEvent)=>{
+    startDateTime = startDateTime.changeHours(value.get)
+    startDateAzure.text = startDateTime.logFileName}}
+  val startDate = new DatePicker(LocalDate.now){onAction=(e:ActionEvent)=>{
+    startDateTime = startDateTime.changeDate(value.get)
+    startDateAzure.text = startDateTime.logFileName}}
+  val startDateAzure = new Label(){text = AzureDateTime(systemStartDateTime).logFileName }
+
+  var endDateTime: AzureDateTime = AzureDateTime(LocalDateTime.now)
+  val endHour = new ComboBox(0 to 23){value=systemStartDateTime.getHour;onAction=(e:ActionEvent)=>{
+    endDateTime = endDateTime.changeHours(value.get)
+    endDateAzure.text = endDateTime.logFileName}}
+  val endDate = new DatePicker(LocalDate.now){onAction=(e:ActionEvent)=>{
+    endDateTime = endDateTime.changeDate(value.get)
+    endDateAzure.text = endDateTime.logFileName}}
+  val endDateAzure = new Label(){text = AzureDateTime(systemStartDateTime).logFileName}
+
+
+  // slider
+  val processCount = new Slider(1,10,1){
+    showTickMarks=true
+    showTickLabels=true
+    snapToTicks=true
+    majorTickUnit=1
+    minorTickCount=0
+    minWidth=itemWidth
+  }
+
+  // consoleArea
+  val consoleArea = new TextArea(){text=""; minWidth=labelWidth+itemWidth}
+
+  // button
+  val launch = new Button("launch"){
+    onAction = (e: ActionEvent) => {
+      val start = startDateTime.azureDate
+      val end = endDateTime.azureDate
+      // Start ActorSystem *********************
+      val system = ActorSystem("MultiActor")
+      val ec = system.dispatcher
+    }
+  }
+
+  // compose
+  stage = new JFXApp.PrimaryStage {
+    title = "IISLogDownloadLauncher"
+    scene = new Scene(new VBox(
+       labeledItem("connectionString", connectionString),
+       labeledItem("containerName", containerName),
+       labeledItem("roleName", roleName),
+       labeledItem("deproyIDs", deployIDs),
+       new HBox(new Label("startDate"){minWidth=labelWidth}, startDate, startHour, startDateAzure),
+       new HBox(new Label("endDate"){minWidth=labelWidth}, endDate, endHour, endDateAzure),
+       labeledItem("processCount", processCount),
+       labeledItem("", launch),
+       consoleArea
+    ))
+  }
+
+}
